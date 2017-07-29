@@ -1,0 +1,25 @@
+\section{Introduction}
+
+Scrap Your Boilerplate (SYB) is approach for generic programming which is come from functional programming.
+Actually, this file is a port of Haskell's library this the same name.
+
+The main point of SYB approach is a generic traversal of data structure similar to well known in OOP world Visitor Pattern.
+But traversal combinators from this library is more general so they are applicable in more areas.
+
+See \url{http://www.cs.vu.nl/boilerplate/} for more information. Functions have similar names to Haskell's SYB library.
+
+C++ template meta-programming technique is hardly used for implementation of this library.
+Code style is similar to boost::mpl. And implemented metafunctions are compatible with it.
+For template specialisation almost everywhere used \lstinline$boost::enable_if$ library.
+
+Some changes are made due to imperativeness of C++ language and imposibility to port some concepts from Haskell to C++.
+
+The action is specialized by concrete type name, or by type's shape.
+Any class or struct is product of its fields. 
+
+In the document mostly functionality needed for License System project is described. But the library is applicable to any C++ project.
+
+Not full set of C++ types are implemented at the moment. But implemented set is enough for large area of tasks.
+
+Actually all set of type's primitives from OOP design could be defined here.
+

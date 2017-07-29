@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<IndependentOrderTest>
+  <CrowdFirstEntity>
+    <Value>3</Value>
+  </CrowdFirstEntity>
+  <FirstEntity>
+    <Value>1</Value>
+  </FirstEntity>
+  <CrowdSecondEntity>
+    <Value>4</Value>
+  </CrowdSecondEntity>
+  <SecondEntity>
+    <Value>2</Value>
+  </SecondEntity>
+</IndependentOrderTest>

@@ -1,0 +1,95 @@
+cmake_minimum_required(VERSION 3.5)
+
+project(cpp_ml)
+#searching for FindICU,cmake
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR})
+
+#IDEA: for the particular example can make the srcipt which called the project by it's folder name
+SET(CMAKE_BUILD_TYPE Debug)
+#SET(CMAKE_BUILD_TYPE Release)
+#SET(SDKS_DIR "d:/sdks")
+string(TOLOWER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
+
+IF(WIN32)
+  MESSAGE(STATUS "WIN32 passes")
+  SET(SDKS_DIR "d:/sdks/")
+  SET(BUILD_TOOL "vc14")
+ELSEIF(UNIX)
+  SET(SDKS_DIR "/home/victor/sdks")
+  SET(BUILD_TOOL "gcc")
+ENDIF()
+
+MESSAGE(STATUS "SDKS_DIR :" ${SDKS_DIR})
+
+IF(WIN32)
+  IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    SET(LIB_POSTFIX "64")
+  ELSE()
+    SET(LIB_POSTFIX "")
+  ENDIF()
+ELSE(UNIX)
+  SET(LIB_POSTFIX "")
+ENDIF()
+
+if(MSVC)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /INCREMENTAL")
+  add_definitions(-DUNICODE -D_UNICODE)
+elseif(UNIX)
+  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD_REQUIRED on)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lstdc++fs")
+endif()
+
+SET(BOOST_ROOT ${SDKS_DIR}/${BUILD_TOOL}/boost-1.61/${BUILD_TYPE})
+#base libraries
+# BOOST
+SET(BOOST_DIR ${SDKS_DIR}/${BUILD_TOOL}/boost-1.61/${BUILD_TYPE})
+SET(BOOST_INCLUDE ${BOOST_DIR}/include)
+SET(BOOST_LIB ${BOOST_DIR}/lib${LIB_POSTFIX})
+
+# GENERAL
+set(Boost_NO_SYSTEM_PATHS ON)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+set(BOOST_ALL_DYN_LINK OFF)
+
+set(Boost_INCLUDE_DIR ${BOOST_INCLUDE})
+set(Boost_LIBRARY_DIR ${BOOST_LIB})
+# ICU 57.1
+SET(ICU_DIR ${SDKS_DIR}/${BUILD_TOOL}/icu-57.1/${BUILD_TYPE})
+SET(ICU_INCLUDE ${ICU_DIR}/include)
+SET(ICU_LIB ${ICU_DIR}/lib${LIB_POSTFIX})
+
+# Loki -- TODO add the debug/release versions for x86/64
+IF(WIN32)
+  SET(LOKI_DIR ${SDKS_DIR}/loki--0.1.7.built)
+  SET(LOKI_INCLUDE ${LOKI_DIR}/include)
+  SET(LOKI_LIB ${LOKI_DIR}/lib)
+ELSEIF(UNIX)
+  SET(LOKI_DIR ${SDKS_DIR}/${BUILD_TOOL}/loki-0.1.7)
+  SET(LOKI_INCLUDE ${LOKI_DIR}/include)
+  SET(LOKI_LIB ${LOKI_DIR}/lib)
+ENDIF()
+
+#set output dirs
+SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/${CMAKE_BUILD_TYPE}/bin)
+SET(LIBRARY_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/${CMAKE_BUILD_TYPE}/lib)
+
+IF(WIN32)
+  SET(DLIB_BASE ${SDKS_DIR}/${BUILD_TOOL}/dlib-19.0/${BUILD_TYPE})
+  SET(DLIB_INCLUDE ${DLIB_BASE}/include)
+  SET(DLIB_LIB ${DLIB_BASE}/lib${LIB_POSTFIX})
+ENDIF()
+
+#SET(TINY_NN_BASE ${SDKS_DIR}/${BUILD_TOOL}/tiny-dnn)
+
+
+SET(TBB_DIR ${SDKS_DIR}/${BUILD_TOOL}/tbb)
+SET(TINY_DNN_BASE ${SDKS_DIR}/${BUILD_TOOL}/tiny_dnn_tbb)
+
+SET(TBB_INSTALL_DIR ${TBB_DIR})
+SET(TBB_INCLUDE_DIR ${TBB_DIR}/include)
+SET(TBB_LIB_DIR ${TBB_DIR}/lib${LIB_POSTFIX})
+
+add_subdirectory(tiny-dnn)

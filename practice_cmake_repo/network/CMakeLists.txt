@@ -1,0 +1,20 @@
+cmake_minimum_required(VERSION 3.5)
+
+project(network)
+
+add_subdirectory(boost_asio_clients)
+add_subdirectory(boost_asio_servers)
+add_subdirectory(rest_api_examples)
+
+add_subdirectory(rtm_async_client)
+add_subdirectory(rtm_async_common)
+add_subdirectory(rtm_async_server)
+
+add_dependencies(rtm_async_server rtm_async_common)
+add_dependencies(rtm_async_client rtm_async_common)
+
+#add_subdirectory(tcp_sockets)
+add_subdirectory(tcp_sockets_final)
+
+add_subdirectory(boost_asio_mt_server)
+add_subdirectory(boost_asio_mt_client)

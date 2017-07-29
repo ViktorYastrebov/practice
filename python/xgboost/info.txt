@@ -1,0 +1,8 @@
+1. Install numpy.
+2. http://stackoverflow.com/questions/22496493/error-while-installing-scipy-on-windows
+   http://stackoverflow.com/questions/33368261/what-is-the-easiest-way-to-install-blas-and-lapack-for-scipy
+   http://stackoverflow.com/questions/37267399/importerror-cannot-import-name-numpy-mkl
+   python -m pip install scipy-0.18.0-cp35-cp35m-win_amd64.whl
+
+3. correct: libpath.py
+   python setup.py install

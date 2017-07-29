@@ -1,0 +1,148 @@
+% Package for user stories writing %
+% Author: Volodymyr Kozieiev
+\ProvidesPackage{UserStories}
+
+\RequirePackage{color}
+
+%new command for role link
+\newcommand{\RoleLink}[1]{Role:#1}
+%new command for key user link
+\newcommand{\KeyUserLink}[1]{KeyUser:#1}
+
+
+%\def\alliterations{all}
+\def\currentiteration{}
+
+\newcommand{\SetCurrentIteration}[1]{ \def\currentiteration{#1} }
+
+
+\newenvironment{UserStoriesDocument}[2]
+{\author{#1}
+\title{#2}
+\setcounter{secnumdepth}{1}
+\maketitle
+\newpage
+\tableofcontents
+\newpage}
+{}
+
+\newenvironment{UserRolesSection}
+{\clearpage\section{User Roles}
+}
+{}
+
+\newenvironment{UserRoleInfo}[1]
+{
+\subsection{#1}
+\label{\RoleLink{#1}}
+}
+{}
+
+
+\newenvironment{KeyUsersSection}
+{\clearpage\section{Key Users}
+}
+{}
+
+\newenvironment{KeyUserInfo}[1]
+{\subsection{#1}
+\label{\KeyUserLink{#1}}
+}
+{}
+
+
+
+\newenvironment{UserStoriesSection}
+{\clearpage\section{User stories}}
+{}
+
+
+% environment for user story
+\newenvironment{UserStory}[3]
+{
+\def\iteration{#2}
+% print only if user story from current iteration
+\ifx\iteration\currentiteration
+	\subsection{#1}
+	\flushleft
+\else
+	% also print if currentiteration is empty, what means that all user stories needed
+	\ifx\currentiteration\empty
+		\subsection{#1}
+		\flushleft
+	% if user story not from current iteration - comment it
+	\else begin comment
+%	\begin{comment}
+	\fi
+\fi
+
+\label{#3}
+
+}
+{
+\ifx\iteration\currentiteration
+	\newpage
+\else
+	\ifx\currentiteration\empty
+		\newpage
+	\else end comment
+%	\end{comment}	
+	\fi
+\fi
+
+}
+
+
+\newenvironment{UserStoriesItems}[1]
+{ \textbf{ #1:}
+\begin{itemize} }
+{ \end{itemize} }
+
+%Acceptance tests
+\newenvironment{AcceptanceTests}
+{ \begin{UserStoriesItems}{Acceptance tests} }
+{ \end{UserStoriesItems} }
+
+%Notes
+\newenvironment{Notes}
+{ \begin{UserStoriesItems}{Notes} }
+{ \end{UserStoriesItems} }
+
+%Tasks
+\newenvironment{Tasks}
+{ \begin{UserStoriesItems}{Tasks} }
+{
+\item[-] Test user story's tasks
+\item[-] Port user story to all platforms
+\end{UserStoriesItems} 
+}
+
+%Constraints
+\newenvironment{Constraints}
+{ \begin{UserStoriesItems}{Constraints} }
+{ \end{UserStoriesItems} }
+
+%List of associated user stories
+\newenvironment{AssociatedUserStories}
+{ \begin{UserStoriesItems}{Associated user stories} }
+{ \end{UserStoriesItems} }
+
+
+\newenvironment{CameFrom}
+{ \begin{UserStoriesItems}{Associated user stories} }
+{ \end{UserStoriesItems} }
+
+
+%Item of glossary
+\newenvironment{GlossaryItem}[1]
+{ \noindent\textbf{#1:}\newline }
+{ \newline\newline }
+
+
+% Detailed description what can be omited for some modes
+\newenvironment{details}{\vspace{.5cm}\vrule\,\strut\begin{minipage}{\textwidth}\small\begin{it}}{\end{it}\end{minipage}}
+
+% TODO: there is a library for this, just need to make it working
+\newcommand{\todo}[1]{{\color{red}\textbf{TODO: #1}}}
+\newcommand{\revision}[1]{{\color{red}\textbf{NOTE: #1}}}
+\newcommand{\substoryOf}[1]{Is sub story of #1\newline}

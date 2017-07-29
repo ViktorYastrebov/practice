@@ -1,0 +1,205 @@
+\documentclass[a4paper]{article}
+\usepackage[english]{babel}
+\usepackage{UserStories}
+\usepackage{url}
+\usepackage{listings}
+
+\begin{document}
+\author{Vitaliy Akimov}
+
+\title{C++ generics library}
+
+\newcommand{\gfun}[1]{\subsection{#1}}
+\newcommand{\gfunname}[1]{\gfun{#1 function}}
+
+\maketitle
+\newpage
+
+\tableofcontents
+\newpage
+
+\section{Desription}
+
+Scrap Your Boilerplate (SYB) is approach for generic programming which is come from functional programming.
+Actually, this file is a port of Haskell's library this the same name.
+
+The main point of SYB approach is a generic traversal of data structure similar to well known in OOP world Visitor Pattern.
+But traversal combinators from this library is more general so they are applicable in more areas.
+
+See \url{http://www.cs.vu.nl/boilerplate/} for more information. Functions have similar names to Haskell's SYB library.
+
+C++ template meta-programming technique is hardly used for implementation of this library.
+Code style is similar to boost::mpl. And implemented metafunctions are compatible with it.
+For template specialisation almost everywhere used \lstinline$boost::enable_if$ library.
+
+Some changes are made due to imperativeness of C++ languege and imposibility to port some concepts from Haskell to C++.
+Generic function is any functional object but its operator() should be template with one parameter.
+
+The action is specialized by concrete type name, or by type's shape. The sum of products technique is used to encode types.
+Any class or struct is product of its fields. Boost::variant is example of Sum type.
+In OOP Sum type is Abstract class this some number of children, each is a different element of a Sum.
+Although typical to OOP types is supported many boilerplate code programmer should write by himself.
+But with for \lstinline$boost::variant$ great amount of this routine boilerplate job is done by this library.
+
+In the document mostly functionality needed for License System project is described. But the library is applicable to any C++ project.
+
+Not full set of C++ types are implemented at the moment. But implemented set is enough for large area of tasks.
+
+Actually all set of type's primitives from OOP design could be defined here.
+
+For first stage this library doesn't support heterogeneous members, but they can be easily emulated by boost::variant (Sum Type in FP world).
+
+\section{Tasks}
+
+\subsection{gfoldl function}
+
+This function is implement's one level traversal with context passing.
+Every other traversal combinator could be implemented on top of this function.
+This is really the main function of the library.
+Haskell implementation has another one \emph{gunfold} for generic data producers
+but because of C++ nature we don't need it in the library.
+
+\subsection{Generic producers functionality}
+
+This is mostly policy for making generic producer function, e.g. parsers, random data generators, deserializations.
+
+\subsection{Generic consumers functionality}
+
+This is mostly policy for making generic consumer function, e.g. parsers, random data generators, serializations, queries.
+
+\subsection{gmapT}
+This function executes a generic function for each member of any object 
+Only one direct sub-level is traversed.
+The function is implemented by means of gfoldl but it's used more often.
+\subsection{gmapTCopy}
+Analogues to gmapQ but it copies all objects along with traversal, so parameter object is unchanged.
+\subsection{gmapQ}
+
+\subsection{everywhere}
+Generic function which executes generic function passed to it as parameter for each sub member of specified object recursively.
+It defers from gmapT which traverses only one level.
+Actually the function is analogues to familiar OOP Visitor pattern.
+
+\subsection{everywhereCopy}
+Generic function which executes generic function passed to it as parameter for each sub member of specified object recursively.
+It defers from gmapT which traverses only one level.
+Actually the function is analogues to familiar OOP Visitor pattern.
+
+\subsection{everywhereBut}
+
+The function is similar to everwhere but it has additional predicate which asks the library to stop traversal.
+
+\subsection{everything}
+
+Generic function which executes generic function passed to it as parameter for each sub member of specified object recursively.
+
+\subsection{Path combinators}
+
+Expression for accessing some node in a heterogeneous try of objects.
+
+\subsection{Type Aliases}
+
+The facility is mostly needed for overloading. It gives ability to overload generic function more specifically.
+I.e. type Salary is alias for float. And we need the alias to overload function only for Salary. And to keep rest of floats untouched.
+
+\subsection{Command line parsing}
+
+Ability to automatically derive command line parser for any data type with documentation.
+
+\subsection{XML serialization}
+
+Serialize any object to custom XML format.
+
+\subsection{XML deserialization}
+
+Deserialize any object from custom XML format.
+
+\subsection{Axis2C serialization}
+
+Serialize any object to a axis message.
+
+\subsection{Axis2C deserialization}
+
+Deserialize any object from a axis message.
+
+\subsection{Generate Meta Data in form of ADT}
+
+Generate ADT for data types for further processing with various specific tools, what are more supposed to deal with meta data processing.
+E.g. term rewriting tools, Haskell.
+
+\subsection{Generate documentation for data types}
+
+This will be done by means of generated ADT. It will generate \LaTeX sources for farther processing.
+
+\subsection{Java Types}
+
+The library is used in heterogeneous systems, there are a few different languages and technologies are used.
+The library will allow automatic generation of interface datatypes on Java Side.
+
+\subsection{C wrappers}
+
+We need C function wrapper to be available. Since all other language such as 4GL, Java, Haskell don't support FFI for C++. 
+So we need automatic facility for exporting C++ to C.
+
+\subsection{4GL wrappers}
+
+The wrapper function which makes function available from 4GL code.
+
+\subsection{ORM}
+
+The function will automatically create needed schema, and all CRUD queries for the data type.
+
+\subsection{UI} 
+This is one more possible application of the library. We can automatically generate UI widgets.
+
+This library provides facilities for automatic creation of GUI Widget from SYB-compatible type.
+The most general way to create widget is:
+
+\lstinline{QWidget *v = new GWidget<Type>();} \footnote{The description is taken from my previous implementation of a similar library 
+(what was based on Qt)}
+
+Representation and behaviour of a widget is based on a shape of a type.
+But common specializations are defined for all widgets.
+There are number of templates by means of which you can change default representation or behaviour.
+
+A parent of a generic widget is always some Widget (depends on type shape).
+For example for \lstinline$std::vector$ it could be TableView or TreeView or ListView.
+The librery is hightly customizable by means of C++ template specializations.
+
+Any generic widget must have parent with type \lstinline$StylelessWidget<T,...>$.
+You could respecialize this template for changing behavioral aspects of a widget.
+
+Widget's type depends on context of a widget. For example top level widget is usually \lstinline$GWidget<T>$.
+But for widget embedded into compound form (product type) has type \lstinline$ProdItem<T,...>$.
+So you can specialize changes of representation and behaviour by type and context.
+Almost every template has additional parameter TraiT. It helps in more accurate template specializing.
+The library defines 2 traits (Editable and Readonly). They show whether widget's content can be edited by a user or not.
+Your own Trait should be inherited from one of these ones.
+
+Every generic widget has methods:
+
+\begin{lstlisting}
+T get() const;			// usual setter method
+void set(T const&);		// usual getter method
+
+and signals:
+void gChanged();		// this signals value of a widget is changed
+void gEdited();			// this signals value of a widget is edited by a user
+\end{lstlisting}
+
+There are number of other features.
+
+\begin{itemize}
+\item Lazy updates of widget's value without blocking of UI (from remote server for example).
+\item Binding value of a container's widget with it's element widget.
+\item Validators.
+\item ...
+\end{itemize}
+
+\subsection{Polymorphic types}
+
+The facility is needed for encoding C++ polymorphic types. It's not a straightforward task because of the way C++ handles polymorphism. 
+Here we use the technique from \lstinline$boost::serialization$.
+
+\end{document}
+

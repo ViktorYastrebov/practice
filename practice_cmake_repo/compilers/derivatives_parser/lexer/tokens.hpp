@@ -1,0 +1,34 @@
+#pragma once
+
+enum token_types {
+  KW_TERMINATION = 0,
+
+
+  KW_IDENTIFIER = 1,
+  KW_E_IDENTIFIER,
+  KW_PI_IDENTIFIER,
+
+  KW_CONSTANTS_IDENTIFIER,
+
+  KW_DOUBLE_LITERAL,
+  
+  KW_MUL,
+  KW_DIV,
+  KW_PLUS,
+  KW_MINUS,
+  KW_POWER,
+
+  KW_COS,
+  KW_SIN,
+  KW_TAN,
+  
+  KW_LPAREN,
+  KW_RPAREN,
+
+  KW_NUMBERS,
+  KW_DOT,
+
+  KW_LEXER_ERROR,
+  KW_UNINITIALIZED
+
+};

@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.5)
+
+project(parallel_patternss)
+
+add_subdirectory(parallel_reduce_std)
+add_subdirectory(parallel_scan_std)
+add_subdirectory(parallel_reduce_ttb)
+add_subdirectory(threads_test)
+add_subdirectory(thread_pool)
+add_subdirectory(threads_input_cond)
+add_subdirectory(std_wait_for)

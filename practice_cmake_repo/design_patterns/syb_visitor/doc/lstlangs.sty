@@ -1,0 +1,59 @@
+\RequirePackage{listings}
+
+\lstdefinelanguage{qx}{%
+  morekeywords={%
+    subentity,entity,of,alias %
+    } %
+  }
+
+\lstdefinelanguage{4GL}{%
+  morekeywords={%
+    absolute,accept,add,after,alter,and,any,append,application,array,as,asc,ascii,at,attribute,attributes,%
+    audit,authorization,average,avg,background,before,begin,begin_c,between,bigint,black,blue,bold,border,bottom,by,byte,call,cancel,case,century, %
+    channel,char,character,check,clean,clear,client,cline,clipped,close,cluster,column,columns,command,comment,commit,committed,connect,connection,constrained,constraint, %
+    construct,continue,count,create,current,cursor,cyan,database,date,datetime,day,dba,dec,decimal,declare,default,defaults,defer,define,delete,delimiter, %
+    desc,destination,dim,dirty,disable,disconnect,display,distinct,double,down,drop,else,enable,end,end_c,error,escape,every,exclusive,execute,exists, %
+    exit,explain,extend,extent,extern,external,false,fetch,field,field_touched,file,finish,first,float,flush,font,fontsize,for,foreach,foreign,form, %
+    format,found,fraction,frame,free,from,full,function,get_fldbuf,globals,go,goto,grant,green,group,hangup,having,header,help,hide,hold, %
+    host,hour,if,immediate,in,index,infield,initialize,inner,input,insert,instructions,int,integer,interrupt,interval,into,is,isolation,italic,join, %
+    key,label,last,left,length,let,like,line,lineno,lines,load,locate,lock,log,main,magenta,margin,matches,max,maxcount,memory, %
+    menu,message,min,minute,mod,mode,modify,money,month,name,native,nchar,need,next,no,normal,not,notfound,null,number,numeric, %
+    nvarchar,of,off,on,open,option,options,or,order,otherwise,outer,output,page,pageno,pause,percent,pipe,port,precision,prepare,previous, %
+    primary,print,printer,prior,privileges,procedure,program,prompt,public,put,quit,raw,read,real,record,recover,red,references,relative,rename,repeatable, %
+    report,resource,return,returning,returns,revoke,right,rollback,rollforward,row,rowids,rows,run,schema,screen,scroll,second,select,serial,serial8,session, %
+    set,shadow,share,show,signal,size,sizeof,skip,sleep,smallfloat,smallint,some,space,spaces,sql,sqlcode,sqlerror,sqlwarning,stability,start,statistics, %
+    step,stop,sum,synonym,table,temp,temporary,terminate,text,then,through,thru,time,timestamp,to,today,top,trailer,true,type,unconstrained, %
+    under,underline,union,unique,units,unload,unlock,up,update,user,using,validate,values,varchar,view,wait,waiting,warning,web,when,whenever, %
+    where,while,white,window,with,without,wordwrap,work,wrap,write,year,yellow }, %
+  sensitive=false,%
+  morecomment=[s]{\{}{\}},%
+  morecomment=[l]--, %
+  morestring=[bd]{'}, %
+  morestring=[bd]{"}}
+
+\lstdefinelanguage{qxt}{
+        morekeywords={True,False,val,def,type,record,child,
+                alias,let,syntax,entity}
+        ,sensitive=false
+        ,morecomment=[l]{\$--}
+        ,morecomment=[s]{\$\{-}{\$-\}}
+        ,morestring=[b]"
+        }
+
+\lstdefinelanguage{XMLSchema}[]{XML}%
+  {keywordsprefix={xs:},sensitive=true}
+
+\lstdefinelanguage{SOAP}[]{XML}%
+  {keywordsprefix={soap12:}, %
+  ,sensitive=true}
+
+\lstdefinelanguage{WS4GL}[]{4GL}{%
+  classoffset=1,morekeywords={fgl_wsdl_load,fgl_ws_create,fgl_ws_setparameters,fgl_ws_execute,fgl_ws_getdata,fgl_ws_set_parameters,fgl_ws_error},classoffset=0 %
+  }
+
+\lstdefinelanguage{QXMETA}[]{XML}{morekeywords={%
+  wsdl,version,targetNameSpace,serviceName,port,portName,url,SOAPVersion,bindingStyle,operation,operationName,SoapAction,MEP,bindingStyle,messageNamespace,InputMessage,messageName, %
+  OutputMessage,variable,variableName,targetNameSpace,variableTypeNamespace,variableType,variableNillable,members,variable,service%
+  } }
+
+

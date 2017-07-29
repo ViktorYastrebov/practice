@@ -1,0 +1,1152 @@
+\documentclass[a4paper]{article}
+\usepackage[english]{babel}
+\usepackage{UserStories}
+\usepackage{xcolor}
+\usepackage{verbatim}
+\usepackage{url}
+\usepackage{listings}
+
+\begin{document}
+
+\lstset{backgroundcolor=\color{lightgray},language=xml, numbers=left, numbersep=0.3cm, frameround=fttt,columns=fullflexible,language=C++ %
+  ,basicstyle=\tiny,commentstyle=\tiny}
+
+\author{Vitaliy Akimov}
+
+\title{C++ generics library}
+
+\newcommand{\gfun}[1]{\subsection{#1}}
+\newcommand{\gfunname}[1]{\gfun{#1 function}}
+
+\maketitle
+\newpage
+
+\tableofcontents
+\newpage
+
+\input{Intro}
+
+\section{How to use generic functions}
+
+\todo{clarify terminology (for example for Parent/Children is used both for fields of class and for %
+descendant of polymorphic class)}
+
+Generic function is usual C++ function which traverses data type tree and runs some action on each child. 
+So it can be seen as a generic visitor. It more general than visitor. For example it can handle context
+information, it can build object, and not only traverse and so on.
+
+Data types of an object should be prepared to be traversable by generic function.
+
+\subsection{Data types}
+
+\subsubsection{Example}
+
+The following example will be used for showing various aspects of the library:
+
+\begin{lstlisting}
+
+  struct Person {
+    std::string &name() { return name_; }
+		std::string &address() { return address_; }
+	private:
+ 		std::string name_;
+		std::string address_;
+	};
+
+	struct Employee {
+		Person& person() {return person_; }
+		float& salary() {return salary_; }
+	private:
+		Person person_;
+		float salary_;
+  };
+
+  struct SubUnit{};
+
+  struct PersonUnit:SubUnit{
+		Employee& empl() { return empl_; }
+	private:
+		Employee empl_;
+  };
+
+	typedef Employee Manager;
+  
+	struct Dept {
+		std::string& name() { return name_; }
+	    Manager& manager() { return manager_; }
+    std::list<boost::shared_ptr<SubUnit> >& subUnits() {
+      return subUnits_;
+    }
+    std::string const& name() const { return name_; }
+    Manager const& manager() const { return manager_; }
+		std::list<boost::shared_ptr<SubUnit> > const& subUnits() const {
+      return subUnits_;
+    }
+	private:
+    std::string name_;
+		Manager manager_;
+		std::list<boost::shared_ptr<SubUnit> > subUnits_;
+	};
+
+	struct DeptUnit:SubUnit {
+		Dept dept() { return dept_; }
+	private:
+		Dept dept_;
+	};
+
+  struct Company {
+		std::list<Dept>& depts() { return depts_; }
+	private:
+		std::list<Dept> depts_;
+	};
+  
+\end{lstlisting}
+
+There are plenty of task we will have to do this the data types.
+
+\begin{itemize}
+  \item{Showing values in readable format for users}
+  \item{Serializing/Deserializing values to/from binary/plain text/XML format}
+  \item{Comparing values}
+  \item{Mapping OOP values to RDBMS}
+  \item{UI creation}
+  \item{Command line arguments parsing}
+  \item{Queries over values (similar to XPath queries)}
+  \item{Transforming values}
+\end{itemize}
+
+The library can make everything (unfortunately most of it is not implemented yet).
+The only thing you need to do for everything started working is provide description
+of the data the library can understand.
+
+Library itself is headers only. All you need to use it is just include Syb/SybAll.h.
+Some functions (e.g. Generate) requires linking to the library.
+
+There are a few preprocessor macroses for this (macroses are used only on top level
+and the library doesn't depend on them). 
+
+\subsubsection{Record types}
+
+For a plain not polymorphic data type you need to provide list of fields the data
+type contains. There are several ways for doing this and the easiest one is 
+putting macros \lstinline{TRAVERSABLE} into your class definition in following way:
+
+\begin{lstlisting}
+
+struct Employee {
+	Person& person() {return person_; }
+	float& salary() {return salary_; }
+private:
+	Person person_;
+	float salary_;
+
+  TRAVERSABLE_BEGIN(Employee)
+    TRAVERSABLE_FIELD(person_)
+    TRAVERSABLE_FIELD(salary_)
+  TRAVERSABLE_END
+ };
+
+\end{lstlisting}
+
+It's better to put it just before closing brace of class definition. This will unify
+the code style and will save us from a member's visibility troubles.
+
+Note encapsulation is broken (like in any serialization library). But it's different 
+paradigm. Logically it's not broken since any generic function anyway won't know 
+any sensible information about members.
+
+Note \lstinline{p.} in field list. The list will go to a friend function body, and 
+p variable will be bound to object with Employee type.
+
+That's all you need to make all generic functions working for the type.
+
+\begin{comment}
+The field list can be presented no only within class definition. It's preferable way 
+but for classes we can not change because they are defined in some external library
+or by any other reason. You can use \lstinline{TRAVERSABLE_OUTER} macros with the same
+parameters it can be defined anywhere in $namespace qx$. For example:
+
+\begin{lstlisting}
+
+struct Employee {
+	Person& person() {return person_; }
+	float& salary() {return salary_; }
+private:
+	Person person_;
+	float salary_;
+};
+
+TRAVERSABLE_OUTER(Employee, p.person_ << p.salary_)
+
+\end{lstlisting}
+
+If a class has no fields you should use \lstinline{TRAVERSABLE_UNIT(<type name>)} inside the 
+class definition. For example:
+
+\begin{lstlisting}
+
+struct SubUnit {
+	TRAVERSABLE_UNIT(SubUnit)
+};
+
+\end{lstlisting}
+
+\end{comment}
+If you're curious what the macroses do see Syb/Syb.h for definitions.
+
+\subsubsection{Polymorphic types}
+
+Polymorphic types structure are slightly harder to define. This is mostly C++ limitations.
+We need at least one virtual function to dispatch needed type information. As it well known
+template function can not be virtual. So besides defining shape of the data type we need to
+define all generic function which will be used with the type.
+
+First we define shape of data type. In parent class we're using macros TRAVERSABLE\_PARENT\_BEGIN(<class name>) 
+instead of TRAVERSABLE\_BEGIN. If the parent is abstract use TRAVERSABLE\_ABSTRACT\_BEGIN(<class name>).
+For example:
+
+\begin{lstlisting}
+
+struct SubUnit {
+	TRAVERSABLE_PARENT_BEGIN(SubUnit)
+  TRAVERSABLE_END
+};
+
+\end{lstlisting}
+
+In all direct children types use macros TRAVERSABLE\_CHILD\_BEGIN(<class name>, <parent>) in place of 
+TRAVERSABLE\_BEGIN. If a parent of a some class also has its parent use 
+TRAVERSABLE\_SUB\_CHILD\_BEGIN(<class name>, <parent>, <top parent>).
+
+
+For example:
+
+\begin{lstlisting}
+
+struct DeptUnit:SubUnit {
+	Dept dept() { return dept_; }
+private:
+	Dept dept_;
+
+  ACCEPTABLE_CHILD(SubUnit);
+	TRAVERSABLE_CHILD_BEGIN(DeptUnit, SubUnit)
+    TRAVERSABLE_FIELD(dept_)
+  TRAVERSABLE_END
+};
+
+\end{lstlisting}
+
+Next you need to make separate CPP file where all auxiliary function's templates will be insentient. 
+In this file you need additionally include file ``Syb/PolySpec.h''.
+And for each parent child pair put ACCEPTABLE\_INSTANCE(<parent name>, <child name>)
+and ACCEPTABLE\_PARENT\_INSTANCE(<parent name>, <child name>) for each non-abstract parent.
+E.g.
+
+
+\begin{lstlisting}
+
+ACCEPTABLE_PARENT(SubUnit);
+ACCEPTABLE_INSTANCE(SubUnit,DeptUnit);
+ACCEPTABLE_INSTANCE(SubUnit,PersonUnit);
+
+\end{lstlisting}
+
+
+See Spec.cpp in SybTest project for example.
+
+Note \lstinline{namespace syb::qx} should be visible there.
+
+And the unpleasant detail is necessity do define all generic functions for each data type.
+It's done by means of specialisation template VisitableBy and EmptyVisitableBy (the template 
+depends on kind of the functor). 
+E.g.
+
+\begin{lstlisting}
+
+template<> struct VisitableBy<SubUnit>:Ret<mpl::vector<
+			GShow
+			,Generate<void>
+		> >{};
+
+\end{lstlisting}
+
+If you forget to include some generic function here the library will not go inside
+the children.
+
+It's usual MPL function which returns MPL vector of possible generic functions for the type.
+In the example it is generic show (GShow) and random data generator (Generate).
+
+By default the template should return all possible generic functions and function's developer
+is responsible for registering new in the list. So library user will only need to specialize 
+the template for code optimisation. And this can be done on late stages of any project. 
+
+It's not quite scalable but it's limitation of C++. In future we'll implement some dependency 
+tracking system that will return actually needed function list for the data type. It will be
+either MPL program or some external tool.
+
+After everything is defined you can use generic function. For example to output content of 
+any SYB ready object just use:
+
+\begin{lstlisting}
+
+  std::cout << gshow(p) << std::endl;
+
+\end{lstlisting}
+
+But next thing you would like to do is to change behaviour of some function for some data type.
+For example you want to output double quotes around sting values. The way for doing overloading
+is not standard and defined by function. You need to read function's documentation.
+
+But for example for GShow you need to specialize template \lstinline{ShowVal}. For 
+some other function it might be function overloading. Usually it's easier to manage overloading
+of templates with one static function rather function parameter based overloading (like for
+\lstinline{std::ostream& operator<<(std::ostream&,T const&)}.
+
+So, for example, for GShow if you need special treatment of strings define:
+
+\begin{lstlisting}
+	
+  namespace syb {
+		template<>
+		struct ShowVal<std::string> {
+			// this is executed before for every field before traversing its children
+			inline static bool before(std::ostream& out, std::string const& v) {
+				out << "\"" << v << "\" ";
+				// if we don't need to traverse any children return false
+				// this doesn't make any sense for string, 
+				// since it doesn't have children
+				return false;
+			};
+			// this is executed after traversing children
+			inline static void after(std::ostream& out, std::string const& v) {}
+		};
+	}
+
+\end{lstlisting}
+
+\subsubsection{Type aliases}
+
+The problem will arise if we don't need to specialize all stings but only one, for example 
+we want distinguish names. This can be done using type aliases. Type alias is just a C++
+class that stores just one field of original type. And so you'll be able to specialize 
+generic function for a given data type.
+
+The alias can either store value or a reference. The first way is more preferable, since we
+don't need to treat specially in generic functions. The aliases is defined in TypeAlias.h.
+
+To make value based alias for name put somewhere on top level:
+
+\begin{lstlisting}
+
+NEWTYPE(Name,std::string);
+NEWTYPE(Address,std::string);
+
+\end{lstlisting}
+
+And in the class where a string should be detected as Name:
+
+\begin{lstlisting}
+
+	struct Person {
+		Person(){}
+		Name& name() { return name_; }
+		Address& address(){ return address_; }
+	private:
+		Name name_;
+		Address address_;
+		TRAVERSABLE(Person, p.name_ << p.address_)
+	};
+
+\end{lstlisting}
+
+Than you can specialize aliases instead of original types. For example:
+
+\begin{lstlisting}
+
+	namespace syb {
+		template<>
+		struct ShowVal<Name> {
+  		inline static bool before(std::ostream& out, Name const& v) {
+        out << "{" << v.val() << "}";
+				// if we return true here the library will 
+        // continue traversing and execute std::string 
+        // default method 
+				return false;
+			};
+			inline static void after(std::ostream& out, Name const& v) {}
+		};
+	}
+
+\end{lstlisting}
+
+This will define class Name with the only field with type name. The type is inherited from
+NewType template that is defined in TypeAlias.h. See reference for details. \todo{label}
+
+If there is no possibility to change class members you can use reference based aliases.
+
+For this define empty type that will be used as a tag for overloading. And a field list
+definition should be changed.
+
+For example:
+
+\begin{lstlisting}
+
+  // we can not change anything in this class
+  struct Person {
+		Person(){}
+    std::string& name() { return name_; }
+		std::string& address(){ return address_; }
+
+    // the const version of accessors are also 
+    // needed now
+    std::string const& name() const { return name_; }
+		std::string const& address() const { return address_; }
+	private:
+		std::string name_;
+		std::string address_;
+	};
+
+  // here we provide type shape definition
+
+  struct Name{};
+  struct Address{};
+
+  TRAVERSABLE_OUTER(Person, alias<Name>(p.name()) << alias<Name>(p.address()));
+
+\end{lstlisting}
+
+And such aliases are implemented using NewTypeRef template. So they can be specialized 
+for example like:
+
+\begin{lstlisting}
+
+	namespace syb {
+		template<>
+		struct ShowVal<NewTypeRef<Name,std::string> > {
+  		inline static bool before(std::ostream& out, 
+        NewTypeRef<Name,std::string> const& v) 
+      {
+        out << "{" << v.val() << "}";
+				// if we return true here the library will 
+        // continue traversing and execute std::string 
+        // default method 
+				return false;
+			};
+			inline static void after(std::ostream& out, 
+        NewTypeRef<Name,std::string> const& v) {}
+		};
+	}
+
+\end{lstlisting}
+
+It's also possible to have default value for an alias, 
+use NEWTYPE\_WITH\_DEFAULT(<name>,<type>,<default value>) for this.
+
+\begin{comment}
+\subsubsection{Views}
+
+\emph{WARNING: This is experemental implementation, and might not work in the current version}
+
+As it was noticed before the library can be blamed for broking encapsulation principle. 
+The problem become serious in case if we don't have permissions for changing classes
+definition. And the class doesn't have suitable method for returning references to its
+members. This is very frequent issue since it's very rare the class returns references
+to its members. It's not an OOP way. You can use views for such cases.
+
+For example:
+
+\begin{lstlisting}
+	struct Person {
+		Person(){}
+		Address& address(){ return address_; }
+		Address const& address() const { return address_; }
+
+		void setName(Name const& v)  { name_ = v; }
+		Name const& getName() const  { return name_; }
+	private:
+		Name name_;
+		Address address_;
+	};
+
+	TRAVERSABLE_OUTER(Person, 
+		view(p
+			,boost::function<Name const& (Person const&)>(&Person::getName)
+			,boost::function<void (Person&,Name const&)>(&Person::setName)
+			)
+		<< p.address())
+\end{lstlisting}
+
+Here Name is accessed using more OOP type accessors. And so we need to create 
+\emph{view} for it. See View.h for reference.
+
+\todo{more information}
+
+\subsubsection{Advanced usage}
+
+The main function of the library is gfoldl. It does the main traversal job. You will not 
+need to redefine it usually. But for some advanced usages just overload it for some 
+parameter and do whatever you want to do. See reference of gfoldl function on doxygen
+generated reference.
+
+\todo{label}
+
+\subsubsection{Limitation}
+
+If you need the data type is usable for producer functions the data type should
+be default constructible. Many Java framework lives this the same limitation. And
+its actually can be easily removed if we find enough amount of use cases for it.
+
+It probably worth use some template for constructing objects without providing
+constructor arguments for some 3rd party library types that we are not allowed
+to change. But it's not implemented yet.
+
+\subsubsection{Resulting type definition}
+
+See \emph{ParadiseBM.h} for working example.
+
+\begin{lstlisting}
+
+namespace qx {
+	using namespace syb;
+
+	NEWTYPE(Name,std::string);
+	NEWTYPE(Address,std::string);
+
+	struct Person {
+		Person(){}
+		Name& name() { return name_; }
+		Address& address(){ return address_; }
+	private:
+		Name name_;
+		Address address_;
+		TRAVERSABLE(Person, p.name_ << p.address_)
+	};
+
+	struct Salary{};
+
+	struct Employee {
+		Person& person() {return person_; }
+		float& salary() {return salary_; }
+	private:
+		Person person_;
+		float salary_;
+
+		TRAVERSABLE(Employee,p.person_ << alias<Salary>(p.salary_))
+	};
+
+	NEWTYPE(Manager,Employee);
+
+	struct SubUnit {
+		ACCEPTABLE(SubUnit);
+		TRAVERSABLE_EMPTY(SubUnit)
+	};
+
+	struct ShowConstrs {
+		template<typename T>
+		void visit(Empty<T> const& v) const {
+			std::cout << "Constr:" << TypeName<T>::value() << std::endl;
+		}
+	};
+
+	namespace syb {
+		template<> struct VisitableBy<SubUnit>:Ret<mpl::vector<
+			GShow
+			,GShow::Child<boost::shared_ptr<SubUnit> const>
+			,GShow::Child<boost::shared_ptr<SubUnit> >
+			,Generate<void>
+			> >{};
+
+		template<>
+		struct EmptyVisitableBy<SubUnit>:mpl::vector<ShowConstrs>{};
+	}
+
+	struct PersonUnit:SubUnit {
+		Employee& empl() { return empl_; }
+		ACCEPTABLE_CHILD(SubUnit);
+
+	private:
+		Employee empl_;
+
+		TRAVERSABLE(PersonUnit,p.empl_)
+	};
+
+	struct Dept {
+		Name& name() { return name_; }
+		Manager& manager() { return manager_; }
+		std::list<boost::shared_ptr<SubUnit> >& subUnits() { return subUnits_; }
+
+		Name const& name() const { return name_; }
+		Manager const& manager() const { return manager_; }
+		std::list<boost::shared_ptr<SubUnit> > const& subUnits() const { return subUnits_; }
+
+	private:
+		Name name_;
+		Manager manager_;
+		std::list<boost::shared_ptr<SubUnit> > subUnits_;
+	};
+
+	//NOTE: you will have to have const and not const options for accessors
+	// the definition should be in qx namespace
+	TRAVERSABLE_OUTER(Dept,p.name() << p.manager() << p.subUnits());
+
+	struct DeptUnit:SubUnit {
+		Dept dept() { return dept_; }
+	private:
+		Dept dept_;
+		float salary_;
+
+		ACCEPTABLE_CHILD(SubUnit);
+		TRAVERSABLE(DeptUnit, p.dept_ << alias<Salary>(p.salary_));
+	};
+
+	//NOTE: encapsulation is broken
+
+	struct Company {
+		std::list<Dept>& depts() { return depts_; }
+	private:
+		std::list<Dept> depts_;
+		TRAVERSABLE(Company,p.depts_)
+	};
+
+\end{lstlisting}
+
+\end{comment}
+
+\subsection{Function's catalog}
+
+\subsubsection{Output readable value}
+
+This is very preliminary version for the function. And it can be used now only for debug
+purposes, i.e. output content of any traversable object. In future here must be done
+at least punctuation handling and at most some natural language grammar handling i.e.
+plural/singular forms, cases handling and so on.
+
+There is std::ostream manipulator for easy running the function. All you need to output
+an object content is run:
+
+\begin{lstlisting}
+
+  std::cout << gshow(c);
+
+\end{lstlisting}
+
+here \emph{c} is any traversable object.
+
+To overload behaviour specialize template ShowVal:
+
+\begin{lstlisting}
+
+  template<typename T, typename EnableT=void>
+	struct ShowVal {
+		inline static bool before(std::ostream& out, T const& v);
+		inline static void after(std::ostream& out, T const& v);
+	};
+
+\end{lstlisiting}
+
+The function before is called prior to traversing children and if return value is false it 
+will not traverse child further (function after also will not be called). 
+
+The after function is called after all children are traversed.
+
+\subsubsection{Generate random value for testing}
+
+The function generates random values for testing purposes.
+For example:
+
+\begin{lstlisting}
+	Company g;
+	generate(g);
+\end{lstlisting}
+
+This will generates Company object with size 10. 
+
+To overload the behaviour you need to specialize 
+
+\begin{lstlisting}
+		template<typename T, typename TagT, typename EnableT=void>
+		struct Arbitrary{
+			inline bool operator()(int s, typename CleanType<T>::type& val) const;
+		};
+\end{lstlisting}
+
+Here as in previous example T is type to be specialized. TagT can be used for defining
+various strategies of value generation. Meta function removes all reference aliases type
+tags from a type. Current size is provided by parameter s. If size is changed during 
+execution of the function the parameter's type should be reference to int.
+
+For example:
+
+\begin{lstlisting}
+
+  template<typename TagT>
+  struct Arbitrary<float,TagT> {
+  	inline bool operator()(int s, float& val) const {
+	  	val = random();
+		  return false;
+  	}
+  };
+
+\end{lstlisting}
+
+As in GShow case the returns value tells children should be traversed or not.
+
+Very often you need to return not just random value but value from some set for this 
+purposes you can use OneOf helper function. For example:
+
+\begin{lstlisting}
+
+	namespace syb {
+	template<typename TagT>
+	struct Arbitrary<Name,TagT>:OneOf<Name> {
+		Arbitrary() {
+			reg(Name("Homer Simpson"));
+			reg(Name("Marge Simpson"));
+			reg(Name("Bart Simpson"));
+			reg(Name("Lisa Simpson"));
+			reg(Name("Maggie Simpson"));
+			reg(Name("Kent Brockman"));
+			reg(Name("Barney Gumble"));
+			reg(Name("Krusty the Clown"));
+			reg(Name("Troy McClure"));
+			reg(Name("Abraham Simpson"));
+			reg(Name("Seymour Skinner"));
+			reg(Name("Waylon Smithers"));
+			reg(Name("Charles Montgomery Burns"));
+		}
+	};
+
+\end{lstlisting}
+
+This will randomly return names with a given values.
+
+Note NewTypeRef you should treat specially. For example:
+
+\begin{lstlisting}
+
+  template<typename TagT>
+	struct Arbitrary<NewTypeRef<Salary,float>,TagT>
+      :OneOf<NewTypeRef<Salary,float> > {
+		Arbitrary() {
+			reg(10);
+			reg(100);
+			reg(1000);
+			reg(10000);
+			reg(100000);
+			reg(1000000);
+			reg(10000000);
+		}
+	};
+
+\end{lstlisting}
+
+Here float is equal to \lstinline{CleanType<Salary>::type}.
+
+The size is very important parameter. If you have a recursive type. For example
+Dept in the current example. The generation can hangs because random number generator
+can always choose recursive branch. So you need to reduce size and don't generate
+recursive branch if the size parameters is less than some predefined value. For example in
+the current sample type recursion can be introduced by \emph{SubUnit}. So we need
+to reduce size there. And use default behaviour if the size is suitable.
+
+\begin{lstlisting}
+
+  template<typename TagT>
+	struct Arbitrary<boost::shared_ptr<SubUnit>,TagT>:PolyArbitrary<SubUnit,TagT> {
+    // first parameter is reference to int not just int as in previous examples
+		inline bool operator()(int& s, boost::shared_ptr<SubUnit>& val) const {
+			if (s > 8) PolyArbitrary<SubUnit,TagT>::operator()(s,val); 
+			s--;
+			return true;
+		}
+	};
+
+\end{lstlisting}
+
+\subsubsection{XML reading/writing}
+
+\emph{See SybXml2}
+
+Serialize any object to custom XML format.
+Deserialize any object to custom XML format. Usually just
+\begin{lstlisting}
+  MyClass myobj;
+  f >> syb::fromXml(myobj);
+\end{lstlisting}
+is enough for reading object's state. And 
+\begin{lstlisting}
+  MyClass myobj;
+  f << syb::toXml(myobj);
+\end{lstlisting}
+is enough for writing.
+
+It's possible to redefine default formating. For example, specializing 
+template XmlKind with either XmlElement, XmlAttribute or XmlText types will
+format corresponding type in specified way. For example:
+\begin{lstlisting}
+
+template<>
+struct XmlKind<MyType>:XmlAttribute{};
+
+\end{lstlisting}
+
+This will read from or write to XML attribute. Though this makes sense only for aliases
+of primitive types.
+
+Also by means of XmlAttributeName and XmlElementName it's possible to change output
+name, which is equal to TypeName by default. 
+
+Type of an object can be either dispatched by attribute if NodeAttribute template
+is specialized for the type or by name if it's not. For more complex dispatching it's possible
+to specialize XmlElementId template.
+
+\subsection{Dynamic functions}
+
+For some simple generic functionality it's possible to use a dynamic function. The function
+just traverses whole tree and executes a dynamic function, i.e. a function which has 
+extended boost::any as it's argument, and this is responsibility of the function to 
+understand its real type and use the object.
+
+See (Syb/Any.h) for details.
+
+There are many ways to store value of any time, for example in Java and C\# it's just any field
+with \emph{Object} type, in C it's pointer to void and for C++ the best option is boost::any.
+
+But the value has no use if we don't know its type. And here we can either check the value's type is 
+equal to some type from some predefined set of types. For example with boost::any\_cast, dynamic\_cast 
+or type\_info comparison (\emph(instanceof) operator in Java, \emph{is} in C\#). This method clearly
+has many disadvantages, we need to know the set of possible types, and dispatching procedure consists
+of many runtime checks for looking up the stored type.
+
+On the other hand we can store a function which takes a value of stored type along with the value (and 
+this is actually our extended \emph{Any} type (from Syb/Any.h) is doing. This is similar to existential type  
+from functional programming world and to usual dynamic method call dispatching from OOP world. In OOP we
+might store a reference to some object by its parent type. The reference might point to instances of many 
+other types, i.e. children of the parent type. But during a call of any function from its interface the 
+actual type of the object will be dispatched to the function's parameters (usually hidden parameter 
+\emph{this}).
+
+The same is implemented in syb::Any, but only one function can be dispatched (can be easily extended
+by returning an object with required interface from the function). The function is set by means of 
+\lstinline{AnyFun<Ctx,T>}, which is replacement of \lstinline{boost::function<void(CtxT&,T const&)> }. 
+The replacement is required for improving build time performance and size of resulting binaries.
+
+There's also an attempt for traversal strategies definition, but it's not yet finished.
+See (Syb/Strategies.h).
+
+\subsection{Generic diff/patch}
+
+This function is analogues for Unix diff/patch but they work for arbitrary SYB enabled objects.
+See (Syb/GenericDiff.h, Syb/GenericPatch.h, SybXml2/XmlDiffPatch.h).
+
+\subsubsection{Command line parsing}
+
+\emph{Not implemented}
+
+Ability to automatically derive command line parser for any data type with documentation.
+
+\subsubsection{XML serialization}
+
+\emph{See SybXml2}
+
+Serialize any object to custom XML format.
+
+\subsubsection{XML deserialization}
+
+\emph{See SybXml2}
+
+Deserialize any object from custom XML format.
+
+\subsubsection{Generate Meta Data in form of ADT}
+
+\emph{Not implemented, use qxt instead}
+
+Generate ADT for data types for further processing with various specific tools, what are more supposed to deal with meta data processing.
+E.g. term rewriting tools, Haskell.
+
+\subsubsection{Generate documentation for data types}
+
+\emph{Not implemented, use qxt instead}
+
+This will be done by means of generated ADT. It will generate \LaTeX sources for farther processing.
+
+\subsubsection{Java Types}
+
+\emph{Not implemented, use qxt instead}
+
+The library is used in heterogeneous systems, there are a few different languages and technologies are used.
+The library will allow automatic generation of interface datatypes on Java Side.
+
+\subsubsection{C wrappers}
+
+\emph{Not implemented, use qxt instead}
+
+We need C function wrapper to be available. Since all other language such as 4GL, Java, Haskell don't support FFI for C++. 
+So we need automatic facility for exporting C++ to C.
+
+\subsubsection{4GL wrappers}
+
+\emph{Not implemented, use qxt instead}
+
+The wrapper function which makes function available from 4GL code.
+
+\subsubsection{ORM}
+
+\emph{Not implemented, use qxt instead}
+
+The function will automatically create needed schema, and all CRUD queries for the data type.
+
+\subsubsection{UI} 
+
+\emph{Not implemented, use qxt instead}
+
+This is one more possible application of the library. We can automatically generate UI widgets.
+
+This library provides facilities for automatic creation of GUI Widget from SYB-compatible type.
+The most general way to create widget is:
+
+\lstinline{QWidget *v = new GWidget<Type>();} \footnote{The description is taken from my previous implementation of a similar library 
+(what was based on Qt)}
+
+Representation and behaviour of a widget is based on a shape of a type.
+But common specializations are defined for all widgets.
+There are number of templates by means of which you can change default representation or behaviour.
+
+A parent of a generic widget is always some Widget (depends on type shape).
+For example for \lstinline$std::vector$ it could be TableView or TreeView or ListView.
+The librery is hightly customizable by means of C++ template specializations.
+
+Any generic widget must have parent with type \lstinline$StylelessWidget<T,...>$.
+You could respecialize this template for changing behavioral aspects of a widget.
+
+Widget's type depends on context of a widget. For example top level widget is usually \lstinline$GWidget<T>$.
+But for widget embedded into compound form (product type) has type \lstinline$ProdItem<T,...>$.
+So you can specialize changes of representation and behaviour by type and context.
+Almost every template has additional parameter TraiT. It helps in more accurate template specializing.
+The library defines 2 traits (Editable and Readonly). They show whether widget's content can be edited by a user or not.
+Your own Trait should be inherited from one of this ones.
+
+Every generic widget has methods:
+
+\begin{lstlisting}
+T get() const;			// usual setter method
+void set(T const&);		// usual getter method
+
+and signals:
+void gChanged();		// this signals value of a widget is changed
+void gEdited();			// this signals value of a widget is edited by a user
+\end{lstlisting}
+
+There are number of other features.
+
+\begin{itemize}
+\item Lazy updates of widget's value without blocking of UI (from remote server for example).
+\item Binding value of a container's widget with it's element widget.
+\item Validators.
+\item ...
+\end{itemize}
+\begin{comment}
+\subsubsection{gmapT}
+This function executes a generic function for each member of any object 
+Only one direct sub-level is traversed.
+The function is implemented by means of gfoldl but it's used more often.
+\paragraph{gmapTCopy}
+Analogues to gmapQ but it copies all objects along with traversal, so parameter object is unchanged.
+\paragraph{gmapQ}
+
+\paragraph{everywhere}
+Generic function which executes generic function passed to it as parameter for each sub member of specified object recursively.
+It defers from gmapT which traverses only one level.
+Actually the function is analogues to familiar OOP Visitor pattern.
+
+\paragraph{everywhereCopy}
+Generic function which executes generic function passed to it as parameter for each sub member of specified object recursively.
+It defers from gmapT which traverses only one level.
+Actually the function is analogues to familiar OOP Visitor pattern.
+
+\paragraph{everywhereBut}
+
+The function is similar to everwhere but it has additional predicate which asks the library to stop traversal.
+
+\paragraph{everything}
+
+Generic function which executes generic function passed to it as parameter for each sub member of specified object recursively.
+
+\paragraph{Path combinators}
+
+Expression for accessing some node in a heterogeneous try of objects.
+
+\end{comment}
+
+\section{How to write generic functions}
+
+\subsection{Generic function}
+
+Generic function can be any C++ function object which accepts parameters of any type. 
+This can be done by templated \emph{operator()} with the only argument. 
+
+
+\begin{lstlisting}
+
+  template<typename T>
+  void operator()(T& v) const;
+
+\end{lstlisting}
+
+The function is called by \emph{gmap} during the traversal. Usually \emph{gmap} 
+just applies the function to each field of provided record, and the function does
+some useful actions according to type information. Haskell version of the library 
+uses more generic traversal operators but for C++ it's enough since it's possible
+to propagate state and return value by means of state of generic funcion's objects.
+
+
+\section{Traversal strategies}
+
+gfoldl function itself is quite hard to use. So there are a few predefined 
+traverse strategies that reduce flexibility of original gfoldl but ease usage.
+The first strategy is 
+
+\begin{comment}
+\subsection{Generic functions that uses void as state}
+
+It is simplification of Spine view and it's usually used instead of the spine view.
+The main change is now we assume generic function returns void. 
+
+The main reason for doing such simplification is difficulty of maintenance return 
+values in C++. But for function's state state of an object that implements the function
+can be used. It's less flexible but it suits for usual use cases.
+
+Such strategy is implemented in \emph{ReturnVoid.h} using \emph{ReturnVoid} generic function.
+The implementation uses Curiously Recurring Template Pattern idiom (\todo{link}), so 
+a resultless generic function should have \emph{ReturnVoid} template instance as parent.
+
+For such functions constr method is useless so we need only analogues of apply that returns
+void. During traversal library calls \emph{operator()} function for each object in type tree.
+The operator should accept every types. So there should be at lest one template version
+of the operator what accepts default case.
+
+\subsection{Guarded traversal}
+
+This is one more strategy. It allows execution of custom code before and after traversing the 
+children. The strategy is implemented by \emph{Guarded} template in \emph{Traverse.h}. 
+
+The library calls \emph{before} method before traversing object's children. And method \emph{after}
+after traversing. 
+
+Both methods have single parameter that as in all other generic functions should accept object of 
+any type. If return value of \emph{before} is convertible to false the children are not traversed
+and method \emph{after} is not called.
+
+The strategy also uses Curiously Recurring Template Pattern and by default the same 
+generic function object is used during the traversal. So you can keep in state of the 
+object any context information.
+
+It's often desirable to simulate implicit state stack. That's mean every changes
+to state variable is visible only during traversal of one level. And then level is 
+fully traversed the changes returned back to original values.
+
+Such behaviour can be turned on by specializing template ImplicitStack to true. 
+See Generate function for example. Generate function needs changes of the size 
+parameter will be visible only for once concrete object and all its children. 
+But not for upper level.
+
+If the template argument is set object that implements the strategy is copied
+for each level and it's discarded then the level is traversed. Of course it shell
+support copying.
+
+Global changes are still possible for such strategy. They can be modeled by storing 
+references to values but not values themselves.
+
+\subsection{Contextual traversal}
+
+This strategy is subclass of Guarded strategy. So it also uses \emph{before} and 
+\emph{after} methods. But additionally it calls \emph{context} method for each sub object.
+The method has 2 parameters. The first one is parent for current object and the second
+is actually current object. So this is only one level contextual traversal. 
+
+It's not a big problem to implement arbitrary level traversal, but we need to
+find out use cases for it.
+
+Using such strategy introduces trouble for polymorphic methods. Now dependency list
+for any polymorphic type should be extended with FunName::Child<Param Type>. This can
+be done automatically by generic function but this is not implemented yet. For arbitrary
+level traversal it's not solvable at all, so we'll have to use dynamic dispatch mechanism
+for implementation if it will be required.
+
+\subsection{Using C++ functors for making generic functions}
+
+It's not implemented yet.
+
+\todo{}
+
+\end{comment}
+
+\section{Consumers}
+
+This is mostly policy for making generic consumer function, e.g. pretty printing, serialization, querying, transforming objects.
+Consumer is usual generic function. Usually defined with Guarded traversal schema. And additionally
+it makes some action.
+
+\subsection{Example of Consumer}
+
+See GShow for example.
+
+\section{Producers}
+
+This is mostly policy for making generic producer function, e.g. parsers, random data generators, deserializations.
+Unlike 
+
+\subsection{Example of Producer}
+
+\subsection{Idioms}
+\subsubsection{Curiously Recurring Template Pattern}
+
+See \url{http://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Curiously_Recurring_Template_Pattern} for derails.
+
+In CRTP idiom, a class T, inherits from a template that specializes on T.
+
+\begin{lstlisting}
+struct SomeClass:X<SomeClass> {...};
+\end{lstlisting}
+
+The idiom has one dangerous issue. It's wrong name of a class provided
+for template's argument.
+
+\begin{lstlisting}
+struct SomeClass1:X<SomeClass2> {...};
+\end{lstlisting}
+
+There is a workaround for checking this. But it needs to be implemented.
+See \url{http://www.ddj.com/cpp/184403883} for details.
+
+\subsubsection{boost::enable\_if}
+
+The library uses boost::enable\_if library for specializing templates.
+
+\todo{describe main strategies.}
+
+\subsubsection{boost::variant}
+
+Boost::variant is example of Sum type.
+In OOP Sum type is Abstract class this some number of children, each is a different element of a Sum.
+Although typical to OOP types is supported many boilerplate code programmer should write by himself.
+But with for \lstinline$boost::variant$ great amount of this routine boilerplate job is done by this library.
+
+\todo{this is not implemented yet}
+
+\subsubsection{Pimpl}
+
+The idiom is very important because heavy use of templates generates many instances of the same 
+code that will lead to huge binary sizes and probably will break compilation. 
+
+So content of function should simply dispatch parameters to non-template functions that are instantiated
+in usual for C++ way (i.e. in cpp file). This way template functions will be small and they very probably
+will be inlined and so quality of resulting code will be near to hand written, but without mistakes intrinsic
+to hand written code.
+
+\section{Future work}
+
+See ToDo list from generated by doxygen reference documentation.
+
+\end{document}
+

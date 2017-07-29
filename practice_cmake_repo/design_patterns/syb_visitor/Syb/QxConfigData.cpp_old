@@ -1,0 +1,36 @@
+#include "QxConfigData.h"
+#include <cstdarg>
+#include "hydra-misc/configdata.h"
+
+namespace Loki {
+template<>
+struct ImplOf<QxConfigDataImpl> {
+  mutable ConfigData configData_;
+};
+}
+
+QxConfigDataImpl::QxConfigDataImpl() {
+  ConfigData::BasicInitialisation();
+  impl_->configData_.LoadConfig("");
+  impl_->configData_.LoadModules();
+}
+
+QxConfigDataImpl::~QxConfigDataImpl() {
+}
+
+std::string QxConfigDataImpl::getQxErrorMessage(Exception& exception) const {
+  return std::string(exception.GetErrorMessage(
+                     impl_->configData_.GetMessageHandler(),""));
+}
+
+void QxConfigDataImpl::log(const std::string &subsystem,
+                           const std::string &msg,
+                           int dummy) const {
+#if 0
+  impl_->configData_.GetLogHandler()->Log(subsystem.c_str(), msg.c_str());
+#endif
+}
+
+ConfigData& QxConfigDataImpl::getConfigData() const {
+  return impl_->configData_;
+}

@@ -1,0 +1,32 @@
+cmake_minimum_required(VERSION 3.5)
+
+project(misc_examples)
+
+add_subdirectory(argmax)
+add_subdirectory(binds)
+add_subdirectory(boost_serialization)
+add_subdirectory(chain_exponentiation)
+add_subdirectory(interate_directory_entries)
+add_subdirectory(map_conditon)
+add_subdirectory(read_utf8_file)
+if(WIN32)
+  add_subdirectory(type_trails)
+endif()
+add_subdirectory(write_utf8_file)
+add_subdirectory(zip_reader_writer)
+add_subdirectory(curring)
+add_subdirectory(move_assignment)
+add_subdirectory(pipe)
+add_subdirectory(pipe_child)
+
+add_subdirectory(regexp_unicode)
+add_subdirectory(matrix_template)
+add_subdirectory(data_structures)
+
+add_subdirectory(test_cases)
+add_subdirectory(compile_time_map)
+add_subdirectory(boost_program_options)
+
+if(WIN32)
+  add_subdirectory(multiprecision)
+endif()

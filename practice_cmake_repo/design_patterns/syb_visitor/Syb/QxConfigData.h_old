@@ -1,0 +1,29 @@
+#ifndef SYB_QX_CONFIG_DATA_H
+#define SYB_QX_CONFIG_DATA_H
+
+#include <vector>
+#include <string>
+#include <loki/Singleton.h>
+#include <loki/Pimpl.h>
+
+class Exception;
+class ConfigData;
+class QxConfigDataImpl {
+public:
+  std::string getQxErrorMessage(Exception& exception) const;
+  ConfigData& getConfigData() const;
+  //Varargs should be avoided in C++ code, since they are not type safe and
+  //have undefined behavior for objects of class type.
+  //It's a wrapper for XIODeviceManager::Log(XString code,const char *fmt,...)
+  void log(const std::string &subsystem, const std::string &msg, int dummy = 0) const;
+private:
+  friend struct Loki::CreateStatic<QxConfigDataImpl>;
+  ~QxConfigDataImpl();
+   QxConfigDataImpl();
+   QxConfigDataImpl(const QxConfigDataImpl&);
+   const QxConfigDataImpl& operator=(const QxConfigDataImpl&);
+   Loki::PimplOf<QxConfigDataImpl>::Type impl_;
+};
+
+typedef Loki::SingletonHolder<QxConfigDataImpl, Loki::CreateStatic> QxConfigData;
+#endif  // SYB_QX_CONFIG_DATA_H

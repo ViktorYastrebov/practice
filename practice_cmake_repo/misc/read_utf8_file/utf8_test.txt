@@ -1,0 +1,1 @@
+some text in UTF-8 encoding: привет мир.
