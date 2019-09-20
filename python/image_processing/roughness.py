@@ -2,8 +2,9 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-from scipy.signal import argrelextrema
+from scipy.signal import argrelextrema, medfilt
 from scipy.ndimage import gaussian_filter1d
+
 
 # from utils.cv import show, norm_minmax
 
@@ -40,7 +41,7 @@ def preprocess(img: np.ndarray):
     img1 /= std1
     img2 /= std2
 
-    diff = np.abs(mean1 - mean2)
+    diff = np.abs(mean1 - std1 - mean2 - std2)
     if mean1 > mean2:
         img2 += diff * mask2
     else:
@@ -52,23 +53,40 @@ def preprocess(img: np.ndarray):
 
 
 def roughness(img):
+    img = norm_minmax(img) * 255
     s1 = cv2.Sobel(img, cv2.CV_32F, 1, 0, 5)
     s2 = cv2.Sobel(img, cv2.CV_32F, 0, 1, 5)
     sobel = 0.5 * s1 + 0.5 * s2
 
     sobel = np.abs(sobel)
+    # hist, bins = np.histogram(sobel.reshape(-1), bins=255)
+    # hist_med = medfilt(hist, 5)
+
+
     mean, std = np.mean(sobel), np.std(sobel)
 
-    mask1 = sobel > (mean + std)
-    mask2 = sobel < (mean - std)
-    mask = np.logical_or(mask1, mask2)
+    mask1 = sobel < (mean + std)
+    mask2 = sobel > (mean - std)
+    mask = np.logical_and(mask1, mask2)
 
     masked = sobel * mask
+    # masked_int = masked.reshape(-1).astype(np.int32)
+    # plt.figure("somel")
+    # plt.hist(sobel.reshape(-1).astype(np.int32), bins=255, range=[0, 255])
+
+    # plt.figure("masked")
+
+    # plt.hist(masked_int, bins=255, range=[0, 255])
+    # plt.show()
+
+    show("masked", masked)
+
     non_zero = np.sum(masked > 0)
 
     rough = non_zero / np.prod(img.shape)
 
     return rough
+
 
 def find_picks2(img):
     h = np.histogram(img.astype(np.int32).reshape(-1), bins=255)
@@ -95,7 +113,6 @@ def find_pick3(img):
     diff1 = np.where(diff1 <= 0, -1, 1)
     plt.plot(diff1)
 
-
     peaks = np.diff(diff1)
     plt.plot(peaks)
     plt.show()
@@ -108,22 +125,35 @@ def find_pick_opencv(img):
     hist, bin_edges = np.histogram(img.astype(np.int32).reshape(-1), bins=255)
     # plt.plot(hist)
     # plt.show()
-    #hist2d = np.reshape(hist, newshape=)
+    # hist2d = np.reshape(hist, newshape=)
 
     hist_median = cv2.medianBlur(hist.astype(np.float32), 21)
-    hist_smoothed = cv2.GaussianBlur(hist_median, (21,21), sigmaX=30)
+    hist_smoothed = cv2.GaussianBlur(hist_median, (21, 21), sigmaX=30)
     hist_smoothed = hist_smoothed.reshape(-1)
-    plt.plot(hist_smoothed)
+    hist_smoothed = np.convolve(hist_smoothed, np.ones(10) / 10, "same")
+    hist_smoothed[hist_smoothed <= 10] = 0
+    plt.plot(norm_minmax(hist_smoothed))
     plt.show()
 
-    diff1 = np.diff(hist_smoothed.astype(np.int32))
-    diff1 = np.where(diff1 <= 1, -1, 1)
+    diff1 = np.convolve(hist_smoothed, [1.0, -1.0], "same")
+    diff1[[0, -1]] = 0
+
+    plt.plot(diff1)
+    plt.show()
+
+    diff1_median = cv2.medianBlur(diff1.astype(np.float32), 21)
+    diff1 = cv2.GaussianBlur(diff1_median.astype(np.float32), (21, 21), sigmaX=30)
+
+    plt.plot(diff1)
+    plt.show()
+
+    diff1 = np.where(diff1 <= 0, -1, 1)
     plt.plot(diff1)
     plt.show()
 
     peaks = np.diff(diff1)
-    plt.plot(peaks)
-    plt.show()
+    # plt.plot(peaks)
+    # plt.show()
 
     peaks = peaks == peaks.min()
     indexes = np.where(peaks == 1)
@@ -131,13 +161,7 @@ def find_pick_opencv(img):
 
 
 def find_picks(img):
-
-    #img = cv2.medianBlur(img, 21)
-    #show("blurred_image", img)
-
     hist_array, bin_edges = np.histogram(img.astype(np.int32).reshape(-1), bins=255)
-    #n, bins, patches = plt.hist(img.astype(np.int32).reshape(-1), bins=255)
-
     diffArr1 = np.diff(hist_array, 1)
     diffArr = np.diff(hist_array, 2)
 
@@ -152,31 +176,13 @@ def find_picks(img):
     hist_list = diffArr.tolist()
     idx1 = hist_list.index(revert_sorted[0])
     idx2 = hist_list.index(revert_sorted[1])
-
-
-    #idx1 = hist_list.index(sorted[0])
-    #idx2 = hist_list.index(sorted[1])
-
     sum = (idx1 + idx2) / 2
-
-    #print(sum)
-    #print(f"first = {revert_sorted[0]}, second = {revert_sorted[1]}")
     return sum
 
 
 if __name__ == '__main__':
     img = cv2.imread("c:/work/imageDataSet/Surface Roughness/Surface Roughness/Tile_001_00131.png",
                      cv2.IMREAD_GRAYSCALE).astype(np.float32)
-
-    # plt.hist(img.astype(np.int32).reshape(-1), bins=255)
-    # plt.show()
-
-    # find_picks(img)
-    # find_picks2(img)
-    # peaks = find_pick3(img)
-
-    find_pick_opencv(img)
-
     show("orig", img)
 
     preprocessed = preprocess(img)

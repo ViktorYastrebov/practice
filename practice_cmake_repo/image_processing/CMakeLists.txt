@@ -4,5 +4,10 @@ project(image_processing)
 
 add_subdirectory(canny_detector)
 add_subdirectory(object_detection_open_cv)
-#add_subdirectory(ocr_numbers_plate)
+add_subdirectory(surface_roughness)
+add_subdirectory(line_detection)
+add_subdirectory(line_merging)
+add_subdirectory(fast_global_smoother_filter)
+add_subdirectory(cross_circles_detection)
+add_subdirectory(adaptiveWolfJoilinFilter)
 
